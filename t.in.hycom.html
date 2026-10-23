@@ -1,0 +1,123 @@
+<h2 id="description">DESCRIPTION</h2>
+<p><em>t.in.hycom</em> downloads ocean fields of the HYCOM ESPC-D-V02
+global ocean prediction system (US Navy, distributed by <a
+href="https://www.hycom.org">HYCOM.org</a>) and imports each requested
+variable as a space-time raster dataset (STRDS). The system runs at 1/12
+degree (0.08 x 0.04 degree, about 8 x 4.5 km at 25 degrees of latitude)
+with 3-hourly output, and includes tides.</p>
+<p>Only the requested window is transferred: the module asks the THREDDS
+NetCDF Subset Service (NCSS) of <code>ncss.hycom.org</code> for one
+variable, one depth, the area and one UTC day at a time, so that each
+request stays small and is cached for later runs. No account or key is
+needed.</p>
+<h3 id="variables">Variables</h3>
+<table>
+<thead>
+<tr class="header">
+<th>Variable</th>
+<th>HYCOM name</th>
+<th>Unit</th>
+<th>Dimensions</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>u</td>
+<td>water_u</td>
+<td>m/s</td>
+<td>3D (depth)</td>
+</tr>
+<tr class="even">
+<td>v</td>
+<td>water_v</td>
+<td>m/s</td>
+<td>3D (depth)</td>
+</tr>
+<tr class="odd">
+<td>temperature</td>
+<td>water_temp</td>
+<td>degree C</td>
+<td>3D (depth)</td>
+</tr>
+<tr class="even">
+<td>salinity</td>
+<td>salinity</td>
+<td>psu</td>
+<td>3D (depth)</td>
+</tr>
+<tr class="odd">
+<td>ssh</td>
+<td>surf_el</td>
+<td>m</td>
+<td>2D</td>
+</tr>
+</tbody>
+</table>
+<p>The <strong>depth</strong> option selects the model level for the 3D
+variables (0 m, the surface, by default; the levels are 0, 2, 4, 6, 8,
+10, 12, 15, 20, 25, 30 m and deeper). Each variable becomes the STRDS
+<em>&lt;output_prefix&gt;_<variable></em>, with one map per 3-hourly
+time step named
+<em>&lt;output_prefix&gt;_<variable>_YYYYMMDDHH</em>.</p>
+<h3 id="products">Products</h3>
+<p>HYCOM publishes two products, chosen by <strong>product</strong>:</p>
+<ul>
+<li><strong>analysis</strong>: the analysis archive, one aggregation per
+year from August 2024, lagging real time by about one day.</li>
+<li><strong>forecast</strong>: the forecast model run collection, as its
+"best" time series: the analysis part of the recent runs followed by the
+latest run's forecast, about 10 days back and 8 days ahead. It rolls
+daily.</li>
+<li><strong>auto</strong> (default): the archive up to its last time,
+the forecast collection after it. A day that straddles the end of the
+archive is split between the two.</li>
+</ul>
+<p>Use <strong>-l</strong> to print the time coverage of every variable
+in both products.</p>
+<h3 id="land-cells">Land cells</h3>
+<p>HYCOM marks land cells as no data. With <strong>-f</strong>, every
+land cell takes the value of the nearest sea cell before import. This is
+what particle tracking models need near the coast, where the 1/12 degree
+grid leaves coastal sea without a value; leave it off for maps and
+statistics.</p>
+<h2 id="notes">NOTES</h2>
+<p>The archive aggregation answers slowly (several minutes per day of
+data on 23 October 2026); the forecast collection answers in under a
+minute per day. For recent periods, <strong>product=forecast</strong> is
+much faster.</p>
+<p>The area defaults to the current region plus one HYCOM cell on each
+side, so that the imported maps cover the region after reprojection. In
+a projected project, <strong>resample=bilinear</strong> gives smoother
+current fields than the default nearest neighbour.</p>
+<p>The download cache (<strong>cache_dir</strong>) holds one NetCDF file
+per variable and day, named after the product, variable, period, area,
+depth and stride; a later run with the same request reuses it.</p>
+<p>Without <strong>--overwrite</strong>, the module stops before
+downloading anything if an output STRDS already exists.</p>
+<h2 id="examples">EXAMPLES</h2>
+<p>Surface currents of the southern Arabian Gulf for a week, with land
+filled for a drift model, in a UTM project:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">g.region</span> n=2965000 s=2745000 w=200000 e=500000 res=1000</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">t.in.hycom</span> <span class="at">-f</span> variables=u,v start=2026-10-14 end=2026-10-21 <span class="dt">\</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    product=forecast area=26.8,54.0,24.8,57.0 resample=bilinear <span class="dt">\</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    cache_dir=<span class="va">$HOME</span>/RSDATA/hycom</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="ex">t.rast.list</span> hycom_u</span></code></pre></div>
+<p>Coverage of the two products:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">t.in.hycom</span> <span class="at">-l</span></span></code></pre></div>
+<h2 id="see-also">SEE ALSO</h2>
+<p><em><a href="t.in.ecmwf.md">t.in.ecmwf</a>, <a
+href="t.in.era5.md">t.in.era5</a>, <a
+href="t.oil.drift.md">t.oil.drift</a>, <a
+href="https://grass.osgeo.org/grass-stable/manuals/t.rast.list.html">t.rast.list</a>,
+<a
+href="https://grass.osgeo.org/grass-stable/manuals/t.register.html">t.register</a></em></p>
+<h2 id="references">REFERENCES</h2>
+<ul>
+<li>HYCOM consortium: <a
+href="https://www.hycom.org/dataserver/espc-d-v02">ESPC-D-V02 global
+analysis and forecast</a>.</li>
+<li>Metzger, E. J. et al. (2017). Operational implementation design for
+the Earth System Prediction Capability (ESPC). NRL report.</li>
+</ul>
+<h2 id="authors">AUTHORS</h2>
+<p>Yann Chemin</p>
